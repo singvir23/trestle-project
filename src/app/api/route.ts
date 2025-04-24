@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         console.log(`Trestle Status: ${trestleResponse.status}`);
         if (!trestleResponse.ok) {
              let errorBody: string | Record<string, unknown> = `Trestle API request failed with status ${trestleResponse.status}`;
-             try { errorBody = await trestleResponse.json(); } catch (_) { /* Ignore parsing error */ }
+             try { errorBody = await trestleResponse.json(); } catch {} /* Ignore parsing error */
              console.error("Trestle API Error:", errorBody);
              salesInsightReport = {
                 ...salesInsightReport,
@@ -216,7 +216,7 @@ JSON Format:
 
                 if (!perplexityResponse.ok) {
                     let errorBody: string | Record<string, unknown> = `Perplexity API request failed with status ${perplexityResponse.status}`;
-                    try { errorBody = await perplexityResponse.json(); } catch (_) { /* Ignore parsing error */ }
+                    try { errorBody = await perplexityResponse.json(); } catch {} /* Ignore parsing error */
                     console.error("Perplexity API Error:", errorBody);
                     throw new Error(typeof errorBody === 'object' && errorBody !== null && 'error' in errorBody && 
                         typeof errorBody.error === 'object' && errorBody.error !== null && 'message' in errorBody.error ? 
@@ -246,7 +246,7 @@ JSON Format:
                         try {
                              parsedAiData = JSON.parse(jsonMatch[0]);
                              console.log("Successfully extracted and parsed JSON block.");
-                        } catch (_) {
+                        } catch {
                              console.error("Failed to parse extracted JSON block.");
                              throw new Error("AI response format error: Could not parse JSON content.");
                         }

@@ -64,7 +64,7 @@ const LinkPreviewCard: React.FC<LinkPreviewProps> = ({ url }) => {
 
             const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
             setMetadata({ title: derivedTitle || hostname, favicon: faviconUrl });
-        } catch (_) {
+        } catch {
             console.error("Error parsing URL for preview:", url);
             setError("Invalid URL format");
             setMetadata({ title: url, favicon: null });
@@ -140,7 +140,7 @@ export default function HomePage() {
 
             if (!response.ok) {
                  let errorData: ApiErrorResponse = { error: `API request failed: ${response.statusText || response.status}` };
-                 try { errorData = await response.json(); } catch(_) { /* ignore parsing error */ }
+                 try { errorData = await response.json(); } catch {} /* ignore parsing error */
                  console.error("API Error Response:", errorData);
                  setError(errorData.details || errorData.error || 'An unknown API error occurred.');
                  setIsLoading(false);
