@@ -1,15 +1,12 @@
-// src/app/page.tsx
-// NO CHANGES NEEDED in this file. Provided for completeness.
-
 'use client';
 
-import React, { useState, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Type Definitions ---
 interface TrestlePhoneOwnerPerson { type: "Person"; name: string | null; /* ... */ }
 interface TrestlePhoneOwnerBusiness { type: "Business"; name: string | null; industry?: string | null; /* ... */ }
-interface TrestleAddress { city?: string; state?: string; [key: string]: any; }
+interface TrestleAddress { city?: string; state?: string; [key: string]: string | undefined; }
 interface TrestleCallerIdResponse {
     id: string | null; phone_number: string | null; is_valid: boolean | null;
     line_type: string | null; carrier: string | null; is_prepaid: boolean | null;
@@ -38,7 +35,7 @@ interface CombinedResult {
     salesInsightReport: SalesInsightReport;
 }
 interface ApiErrorResponse {
-    error: string; details?: any; trestleStatus?: number;
+    error: string; details?: string; trestleStatus?: number;
     perplexityError?: boolean;
 }
 
@@ -48,7 +45,7 @@ const LinkPreviewCard: React.FC<LinkPreviewProps> = ({ url }) => {
     const [metadata, setMetadata] = useState<{ title: string | null; favicon: string | null }>({ title: null, favicon: null });
     const [error, setError] = useState<string | null>(null);
 
-    useState(() => {
+    useEffect(() => {
         try {
             if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
                 throw new Error("Invalid URL scheme");
@@ -67,12 +64,12 @@ const LinkPreviewCard: React.FC<LinkPreviewProps> = ({ url }) => {
 
             const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
             setMetadata({ title: derivedTitle || hostname, favicon: faviconUrl });
-        } catch (e) {
-            console.error("Error parsing URL for preview:", url, e);
+        } catch (_) {
+            console.error("Error parsing URL for preview:", url);
             setError("Invalid URL format");
             setMetadata({ title: url, favicon: null });
         }
-    });
+    }, [url]);
 
     if (error) {
         return (
@@ -92,6 +89,7 @@ const LinkPreviewCard: React.FC<LinkPreviewProps> = ({ url }) => {
         >
             <div className="flex items-center space-x-2">
                 {metadata.favicon && (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={metadata.favicon}
                         alt=""
@@ -142,7 +140,7 @@ export default function HomePage() {
 
             if (!response.ok) {
                  let errorData: ApiErrorResponse = { error: `API request failed: ${response.statusText || response.status}` };
-                 try { errorData = await response.json(); } catch(e) { /* ignore parsing error */ }
+                 try { errorData = await response.json(); } catch(_) { /* ignore parsing error */ }
                  console.error("API Error Response:", errorData);
                  setError(errorData.details || errorData.error || 'An unknown API error occurred.');
                  setIsLoading(false);
@@ -272,7 +270,7 @@ export default function HomePage() {
              const borderColor = isError ? 'border-red-300 dark:border-red-600/50' : 'border-orange-300 dark:border-orange-600/50';
              const textColor = isError ? 'text-red-700 dark:text-red-300' : 'text-orange-700 dark:text-orange-300';
              const title = isError ? 'Report Generation Failed' : 'No Business Found';
-             let message = report.message || (isError ? 'Could not generate sales insights.' : 'No business identified for this number.');
+             const message = report.message || (isError ? 'Could not generate sales insights.' : 'No business identified for this number.');
 
              return (
                  <motion.div
@@ -371,7 +369,6 @@ export default function HomePage() {
         visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
         exit: { opacity: 0, y: -5, transition: { duration: 0.15 } }
     };
-
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-start p-4 sm:p-8 md:p-12 lg:p-16 bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-200">

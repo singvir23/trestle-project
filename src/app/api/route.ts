@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // --- Type Definitions ---
 interface TrestlePhoneOwnerPerson { type: "Person"; name: string | null; /* ... other fields */ }
 interface TrestlePhoneOwnerBusiness { type: "Business"; name: string | null; industry?: string | null; /* ... other fields */ }
-interface TrestleAddress { city?: string; state?: string; [key: string]: any; }
+interface TrestleAddress { city?: string; state?: string; [key: string]: string | undefined; }
 interface TrestleCallerIdResponse {
     id: string | null; phone_number: string | null; is_valid: boolean | null;
     line_type: string | null; carrier: string | null; is_prepaid: boolean | null;
@@ -33,7 +33,7 @@ interface CombinedResult {
     salesInsightReport: SalesInsightReport;
 }
 interface ApiErrorResponse {
-    error: string; details?: any; trestleStatus?: number;
+    error: string; details?: string; trestleStatus?: number;
     perplexityError?: boolean;
 }
 
@@ -101,8 +101,8 @@ export async function POST(request: NextRequest) {
         });
         console.log(`Trestle Status: ${trestleResponse.status}`);
         if (!trestleResponse.ok) {
-             let errorBody: any = `Trestle API request failed with status ${trestleResponse.status}`;
-             try { errorBody = await trestleResponse.json(); } catch (e) { /* Ignore parsing error */ }
+             let errorBody: string | Record<string, unknown> = `Trestle API request failed with status ${trestleResponse.status}`;
+             try { errorBody = await trestleResponse.json(); } catch (_) { /* Ignore parsing error */ }
              console.error("Trestle API Error:", errorBody);
              salesInsightReport = {
                 ...salesInsightReport,
@@ -215,10 +215,15 @@ JSON Format:
                 console.log(`Perplexity Status: ${perplexityResponse.status}`);
 
                 if (!perplexityResponse.ok) {
-                    let errorBody: any = `Perplexity API request failed with status ${perplexityResponse.status}`;
-                    try { errorBody = await perplexityResponse.json(); } catch (e) { /* Ignore parsing error */ }
+                    let errorBody: string | Record<string, unknown> = `Perplexity API request failed with status ${perplexityResponse.status}`;
+                    try { errorBody = await perplexityResponse.json(); } catch (_) { /* Ignore parsing error */ }
                     console.error("Perplexity API Error:", errorBody);
-                    throw new Error(errorBody?.error?.message || errorBody?.message || `Perplexity API Error: ${perplexityResponse.status}`);
+                    throw new Error(typeof errorBody === 'object' && errorBody !== null && 'error' in errorBody && 
+                        typeof errorBody.error === 'object' && errorBody.error !== null && 'message' in errorBody.error ? 
+                        String(errorBody.error.message) : 
+                        typeof errorBody === 'object' && errorBody !== null && 'message' in errorBody ? 
+                        String(errorBody.message) : 
+                        `Perplexity API Error: ${perplexityResponse.status}`);
                 }
 
                 const perplexityData = await perplexityResponse.json();
@@ -241,8 +246,8 @@ JSON Format:
                         try {
                              parsedAiData = JSON.parse(jsonMatch[0]);
                              console.log("Successfully extracted and parsed JSON block.");
-                        } catch (nestedParseError) {
-                             console.error("Failed to parse extracted JSON block.", nestedParseError);
+                        } catch (_) {
+                             console.error("Failed to parse extracted JSON block.");
                              throw new Error("AI response format error: Could not parse JSON content.");
                         }
                     } else {
@@ -257,34 +262,36 @@ JSON Format:
 
                  // Ensure keyPersonnel has the correct shape
                  const validatedKeyPersonnel = (Array.isArray(parsedAiData.keyPersonnel)
-                    ? parsedAiData.keyPersonnel.map((person: any) => ({
-                        name: person?.name ?? 'Unknown Name',
-                        title: person?.title ?? 'Unknown Title',
-                        linkedInUrl: person?.linkedInUrl ?? null,
-                        profileSummary: person?.profileSummary ?? null,
+                    ? parsedAiData.keyPersonnel.map((person: Record<string, unknown>) => ({
+                        name: typeof person?.name === 'string' ? person.name : 'Unknown Name',
+                        title: typeof person?.title === 'string' ? person.title : 'Unknown Title',
+                        linkedInUrl: typeof person?.linkedInUrl === 'string' ? person.linkedInUrl : null,
+                        profileSummary: typeof person?.profileSummary === 'string' ? person.profileSummary : null,
                     }))
                     : null) as KeyPersonnel[] | null;
 
                  // --- Populate SalesInsightReport (Success Case) ---
                  salesInsightReport = {
                      status: 'success',
-                     companyName: parsedAiData.companyName ?? businessName,
-                     website: parsedAiData.website ?? null,
-                     industry: parsedAiData.industry ?? industryHint,
+                     companyName: typeof parsedAiData.companyName === 'string' ? parsedAiData.companyName : businessName,
+                     website: typeof parsedAiData.website === 'string' ? parsedAiData.website : null,
+                     industry: typeof parsedAiData.industry === 'string' ? parsedAiData.industry : industryHint,
                      // Use AI location first, fallback to Trestle hint
-                     location: parsedAiData.location ?? trestleLocationHint,
-                     companySize: parsedAiData.companySize ?? null,
+                     location: typeof parsedAiData.location === 'string' ? parsedAiData.location : trestleLocationHint,
+                     companySize: typeof parsedAiData.companySize === 'string' ? parsedAiData.companySize : null,
                      keyPersonnel: validatedKeyPersonnel,
-                     companyOverview: parsedAiData.companyOverview ?? null,
-                     productsServices: parsedAiData.productsServices ?? null,
-                     targetAudience: parsedAiData.targetAudience ?? null,
-                     recentNewsTrigger: parsedAiData.recentNewsTrigger ?? null,
-                     potentialPainPoints: parsedAiData.potentialPainPoints ?? null,
-                     techStackHints: parsedAiData.techStackHints ?? null,
-                     conversationStarters: parsedAiData.conversationStarters ?? null,
-                     aiConfidenceScore: parsedAiData.aiConfidenceScore ?? 'Medium',
-                     researchTimestamp: parsedAiData.researchTimestamp ?? new Date().toISOString(),
-                     researchSources: parsedAiData.researchSources ?? null,
+                     companyOverview: typeof parsedAiData.companyOverview === 'string' ? parsedAiData.companyOverview : null,
+                     productsServices: typeof parsedAiData.productsServices === 'string' ? parsedAiData.productsServices : null,
+                     targetAudience: typeof parsedAiData.targetAudience === 'string' ? parsedAiData.targetAudience : null,
+                     recentNewsTrigger: typeof parsedAiData.recentNewsTrigger === 'string' ? parsedAiData.recentNewsTrigger : null,
+                     potentialPainPoints: Array.isArray(parsedAiData.potentialPainPoints) ? parsedAiData.potentialPainPoints : null,
+                     techStackHints: Array.isArray(parsedAiData.techStackHints) ? parsedAiData.techStackHints : null,
+                     conversationStarters: Array.isArray(parsedAiData.conversationStarters) ? parsedAiData.conversationStarters : null,
+                     aiConfidenceScore: typeof parsedAiData.aiConfidenceScore === 'string' && 
+                                      ['High', 'Medium', 'Low'].includes(parsedAiData.aiConfidenceScore) ? 
+                                      parsedAiData.aiConfidenceScore as 'High' | 'Medium' | 'Low' : 'Medium',
+                     researchTimestamp: typeof parsedAiData.researchTimestamp === 'string' ? parsedAiData.researchTimestamp : new Date().toISOString(),
+                     researchSources: Array.isArray(parsedAiData.researchSources) ? parsedAiData.researchSources : null,
                  };
                  console.log("Formatted Sales Insight Report on Success");
 
@@ -330,7 +337,6 @@ JSON Format:
          if (error instanceof SyntaxError) {
              errorMessage = 'Invalid request format.';
              statusCode = 400;
-             if (error instanceof Error) errorMessage = error.message;
          } else if (error instanceof Error) {
             errorMessage = error.message;
         }
